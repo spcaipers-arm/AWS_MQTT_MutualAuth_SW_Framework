@@ -1,4 +1,4 @@
-# yaml-language-server: $schema=https://raw.githubusercontent.com/Open-CMSIS-Pack/devtools/schemas/projmgr/0.9.4/tools/projmgr/schemas/clayer.schema.json
+# yaml-language-server: $schema=https://raw.githubusercontent.com/Open-CMSIS-Pack/devtools/schemas/projmgr/1.2.0/tools/projmgr/schemas/clayer.schema.json
 
 layer:
   # type: Socket
@@ -18,7 +18,7 @@ layer:
   #   - pack: AWS::FreeRTOS-Plus-TCP@4.0.1
   #   - pack: MDK-Packs::IoT_Socket
 
-  add-paths:
+  add-path:
     - .
 
   components:
