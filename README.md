@@ -37,7 +37,7 @@ Configure WiFi Access Point (when connecting via WiFi):
 Build
 -----
 1. Prerequisites:
-   - [CMSIS-Toolbox 1.1.0](https://github.com/Open-CMSIS-Pack/cmsis-toolbox/releases/tag/1.1.0) or later
+   - [CMSIS-Toolbox 1.2.0](https://github.com/Open-CMSIS-Pack/cmsis-toolbox/releases/tag/1.2.0) or later
    - Arm Compiler 6.18 or later
    - CMSIS packs listed in [Demo.csolution.yml](Demo.csolution.yml)
 2. Create `.cprj` project using `csolution`:  
