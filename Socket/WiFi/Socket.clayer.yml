@@ -5,11 +5,11 @@ layer:
   # name: WiFi
   description: IoT Socket interface using WiFi
 
-  # interfaces:
-  #   - consumes:
-  #     - C_WiFi: 0
-  #   - provides:
-  #     - IoT_Socket:
+  interfaces:
+    consumes:
+      - C_WiFi: 0
+    provides:
+      - IoT_Socket:
 
   # packs:
   #   - pack: MDK-Packs::IoT_Socket

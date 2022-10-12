@@ -11,17 +11,17 @@ project:
   #   - pack: AWS::corePKCS11@4.0.1
   #   - pack: Arm-Packs::PKCS11
 
-  # interfaces:
-  #   - provides:
-  #     - FreeRTOS:
-  #     - RTOS2:
-  #   - consumes:
-  #     - IoT_Socket:
-  #     - C_VIO:
-  #     - STDOUT:
-  #     - STDIN:
-  #     - STDERR:
-  #     - Heap : 65536
+  interfaces:
+    provides:
+      - FreeRTOS:
+      - RTOS2:
+    consumes:
+      - IoT_Socket:
+      - C_VIO:
+      - STDOUT:
+      - STDIN:
+      - STDERR:
+      - Heap : 65536
 
   add-path:
     - ./config_files

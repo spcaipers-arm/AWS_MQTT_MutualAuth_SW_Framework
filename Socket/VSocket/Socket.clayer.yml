@@ -5,11 +5,11 @@ layer:
   # name: VSocket
   description: IoT Socket interface using Virtual Socket on Arm Virtual Hardware
 
-  # interfaces:
-  #   - consumes:
-  #     - RTOS2:
-  #   - provides:
-  #     - IoT_Socket:
+  interfaces:
+    consumes:
+      - RTOS2:
+    provides:
+      - IoT_Socket:
 
   # packs:
   #   - pack: MDK-Packs::IoT_Socket
