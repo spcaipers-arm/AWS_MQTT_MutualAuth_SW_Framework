@@ -15,6 +15,19 @@ upload:
   - README.md
 steps:
   - run: |
+      wget https://github.com/Open-CMSIS-Pack/cmsis-toolbox/releases/download/1.2.0/cmsis-toolbox.sh
+      chmod +x cmsis-toolbox.sh
+      sudo ./cmsis-toolbox.sh <<EOI
+      /opt/ctools
+      $CMSIS_PACK_ROOT
+      $(dirname $(which armclang 2>/dev/null))
+      $(dirname $(which armcc 2>/dev/null))
+      $(dirname $(which arm-none-eabi-gcc 2>/dev/null))
+      EOI
+      echo "cpackget : $(which cpackget)"
+      echo "csolution: $(which csolution)"
+      echo "cbuild   : $(which cbuild)"
+  - run: |
       echo ">csolution -s Demo.csolution.yml list packs -m >packlist"
       csolution -s Demo.csolution.yml list packs -m >packlist
       echo ">cpackget add -f packlist -a"
