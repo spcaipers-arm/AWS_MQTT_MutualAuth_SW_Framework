@@ -30,8 +30,7 @@ on:
   workflow_dispatch:
 
 env:
-  # If this repo is forked and different AWS account is used, these values need to be changed
-  AWS_DEFAULT_REGION: eu-west-1
+  AWS_DEFAULT_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
   AWS_S3_BUCKET_NAME: ${{ secrets.AWS_S3_BUCKET_NAME }}
   AWS_IAM_PROFILE: ${{ secrets.AWS_IAM_PROFILE }}
   AWS_SECURITY_GROUP_ID: ${{ secrets.AWS_SECURITY_GROUP_ID }}
@@ -48,7 +47,7 @@ jobs:
       uses: actions/checkout@v3
 
     - name: Set up Python 3.10
-      uses: actions/setup-python@v2
+      uses: actions/setup-python@v4
       with:
         python-version: '3.10'
 
@@ -70,10 +69,10 @@ jobs:
     - uses: ammaraskar/gcc-problem-matcher@master
 
     - name: Configure AWS AVH Access Credentials
-      uses: aws-actions/configure-aws-credentials@v1
+      uses: aws-actions/configure-aws-credentials@v1-node16
       with:
         role-to-assume: ${{ secrets.AWS_ASSUME_ROLE }}
-        aws-region: ${{ env.AWS_DEFAULT_REGION }}
+        aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
 
     - name: Run Demo
       id: avh
@@ -81,7 +80,7 @@ jobs:
         avhclient -b aws execute --specfile avh.yml
 
     - name: Archive results
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3
       with:
         name: results
         path: |
