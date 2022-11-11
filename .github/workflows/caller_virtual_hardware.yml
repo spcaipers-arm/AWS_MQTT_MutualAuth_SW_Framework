@@ -1,0 +1,30 @@
+# This workflows just forces virtual_hardware.yml workflow to run
+name: Caller Arm Virtual Hardware
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    paths:
+      - .github/workflows/caller_virtual_hardware.yml
+      - amazon-freertos/**/*
+      - config_files/**/*
+      - Board/AVH_MPS3_Corstone-300/**/*
+      - Socket/VSocket/**/*
+      - RTE/**/*
+      - app_main.c
+      - Demo.*.yml
+  workflow_dispatch:
+jobs:
+  upload_pr_number:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Save PR number
+        env:
+          PR_NUMBER: ${{ github.event.number }}
+        run: |
+          mkdir -p ./pr
+          echo -n $PR_NUMBER > ./pr/pr_number
+      - uses: actions/upload-artifact@v3
+        with:
+          name: pr_number
+          path: pr/

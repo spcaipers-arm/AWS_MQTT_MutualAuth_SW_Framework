@@ -1,3 +1,8 @@
+# This workflow is triggered whenever "Caller Arm Virtual Hardware" workflow is completed (which is called by PR).
+# This workflow ideally should be triggered also by PR, but forked PR has limited permissions which does not
+# allow to use `configure-aws-credentials` actions and using secrets.
+# It will update its status back to the caller PR as "Arm Virtual Hardware" check name
+
 # The repository needs to provide the following secrets
 # - AWS Access - Settings and credentials to access AWS services for running Arm Virtual Hardware
 #   - AWS_DEFAULT_REGION          The data center region to be used.
@@ -13,22 +18,12 @@
 #   - CLIENT_PRIVATE_KEY_PEM      Client (device) private key
 
 name: Arm Virtual Hardware
-
 on:
-  push:
-    branches: [ main ]
-  pull_request:
-    paths:
-      - .github/workflows/virtual_hardware.yml
-      - amazon-freertos/**/*
-      - config_files/**/*
-      - Board/AVH_MPS3_Corstone-300/**/*
-      - Socket/VSocket/**/*
-      - RTE/**/*
-      - app_main.c
-      - Demo.*.yml
-  workflow_dispatch:
-
+  workflow_run:
+    workflows:
+      - Caller Arm Virtual Hardware
+    types:
+      - completed
 env:
   AWS_DEFAULT_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
   AWS_S3_BUCKET_NAME: ${{ secrets.AWS_S3_BUCKET_NAME }}
@@ -37,58 +32,139 @@ env:
   AWS_SUBNET_ID: ${{ secrets.AWS_SUBNET_ID }}
 
 jobs:
+  set_pending_status_to_pr:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set a pending status to the PR
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          curl --request POST \
+            --url https://api.github.com/repos/${{ github.repository }}/statuses/${{ github.event.workflow_run.head_commit.id }} \
+            --header "authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            --header 'content-type: application/json' \
+            --data '{
+              "state": "pending",
+              "context": "Arm Virtual Hardware",
+              "target_url": "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id	}}"
+              }' \
+            --fail
+
   ci_test:
     runs-on: ubuntu-latest
+    needs: set_pending_status_to_pr
     permissions:
       id-token: write
       contents: read
     steps:
-    - name: Check out repository code
-      uses: actions/checkout@v3
+      - name: Download workflow artifact
+        uses: dawidd6/action-download-artifact@v2
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          workflow: caller_virtual_hardware.yml
+          run_id: ${{ github.event.workflow_run.id }}
 
-    - name: Set up Python 3.10
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.10'
+      - name: Read the pr_num file
+        id: pr_num_reader
+        uses: juliangruber/read-file-action@v1.1.6
+        with:
+          path: ./pr_number/pr_number
+          trim: true
 
-    - name: Install AVH Client for Python
-      run: |
-        pip install git+https://github.com/ARM-software/avhclient.git@v0.1
+      - name: Clone this repo
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
 
-    - name: Configure AWS IoT Thing Credentials
-      env:
-        MQTT_BROKER_ENDPOINT: ${{ secrets.MQTT_BROKER_ENDPOINT }}
-        IOT_THING_NAME: ${{ secrets.IOT_THING_NAME }}
-        CLIENT_CERTIFICATE_PEM: ${{ secrets.CLIENT_CERTIFICATE_PEM }}
-        CLIENT_PRIVATE_KEY_PEM: ${{ secrets.CLIENT_PRIVATE_KEY_PEM }}
-      run: |
-        cd amazon-freertos/demos/include
-        envsubst <aws_clientcredential.h.in >aws_clientcredential.h
-        envsubst <aws_clientcredential_keys.h.in >aws_clientcredential_keys.h
+      - name: Checkout PR
+        env:
+          GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
+        run: |
+          gh pr checkout ${{ steps.pr_num_reader.outputs.content }}
 
-    - uses: ammaraskar/gcc-problem-matcher@master
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
 
-    - name: Configure AWS AVH Access Credentials
-      uses: aws-actions/configure-aws-credentials@v1-node16
-      with:
-        role-to-assume: ${{ secrets.AWS_ASSUME_ROLE }}
-        aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
+      - name: Install AVH Client for Python
+        run: |
+          pip install git+https://github.com/ARM-software/avhclient.git@v0.1
 
-    - name: Run Demo
-      id: avh
-      run: |
-        avhclient -b aws execute --specfile avh.yml
+      - name: Configure AWS IoT Thing Credentials
+        env:
+          MQTT_BROKER_ENDPOINT: ${{ secrets.MQTT_BROKER_ENDPOINT }}
+          IOT_THING_NAME: ${{ secrets.IOT_THING_NAME }}
+          CLIENT_CERTIFICATE_PEM: ${{ secrets.CLIENT_CERTIFICATE_PEM }}
+          CLIENT_PRIVATE_KEY_PEM: ${{ secrets.CLIENT_PRIVATE_KEY_PEM }}
+        run: |
+          cd amazon-freertos/demos/include
+          envsubst <aws_clientcredential.h.in >aws_clientcredential.h
+          envsubst <aws_clientcredential_keys.h.in >aws_clientcredential_keys.h
 
-    - name: Archive results
-      uses: actions/upload-artifact@v3
-      with:
-        name: results
-        path: |
-          Demo.log
-        retention-days: 1
-        if-no-files-found: error
-      if: always()
+      - uses: ammaraskar/gcc-problem-matcher@master
 
-    - name: Check results
-      run: |
-        grep -q "Demo completed successfully." Demo.log
+      - name: Configure AWS AVH Access Credentials
+        uses: aws-actions/configure-aws-credentials@v1-node16
+        with:
+          role-to-assume: ${{ secrets.AWS_ASSUME_ROLE }}
+          aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
+
+      - name: Run Demo
+        id: avh
+        run: |
+          avhclient -b aws execute --specfile avh.yml
+
+      - name: Archive results
+        uses: actions/upload-artifact@v3
+        with:
+          name: results
+          path: |
+            Demo.log
+          retention-days: 1
+          if-no-files-found: error
+        if: always()
+
+      - name: Check results
+        run: |
+          grep -q "Demo completed successfully." Demo.log
+
+  set_success_status_to_pr:
+    runs-on: ubuntu-latest
+    needs: ci_test
+    if: ${{ success() }}
+    steps:
+      - name: Set success status to the PR
+        env:
+          GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
+        run: |
+          curl --request POST \
+            --url https://api.github.com/repos/${{ github.repository }}/statuses/${{ github.event.workflow_run.head_commit.id }} \
+            --header "authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            --header 'content-type: application/json' \
+            --data '{
+              "state": "success",
+              "context": "Arm Virtual Hardware",
+              "target_url": "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id	}}"
+              }' \
+            --fail
+
+  set_failure_status_to_pr:
+    runs-on: ubuntu-latest
+    needs: ci_test
+    if: ${{ failure() }}
+    steps:
+      - name: Set failure status to the PR
+        env:
+          GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
+        run: |
+          curl --request POST \
+            --url https://api.github.com/repos/${{ github.repository }}/statuses/${{ github.event.workflow_run.head_commit.id }} \
+            --header "authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            --header 'content-type: application/json' \
+            --data '{
+              "state": "failure",
+              "context": "Arm Virtual Hardware",
+              "target_url": "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id	}}"
+              }' \
+            --fail
